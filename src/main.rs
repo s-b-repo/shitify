@@ -79,9 +79,7 @@ async fn handle_proxy(
     let mut proxy_resp = Response::builder().status(resp.status());
 
     for (k, v) in resp.headers() {
-        if let Ok(name) = k.clone().try_into() {
-            proxy_resp = proxy_resp.header(name, v.clone());
-        }
+        proxy_resp = proxy_resp.header(k, v);
     }
 
     let stream = resp.bytes_stream();
