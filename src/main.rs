@@ -1,11 +1,11 @@
-// src/main.rs
+use rand::{seq::SliceRandom, thread_rng};
+use reqwest::Client;
 use warp::{
+    http::{Method, Response, StatusCode},
     hyper::Body,
-    http::{HeaderValue, Method, Response, StatusCode},
     Filter, Rejection, Reply,
 };
-use reqwest::Client;
-use rand::{seq::SliceRandom, thread_rng};
+use std::convert::Infallible;
 
 static USER_AGENTS: &[&str] = &[
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120",
@@ -19,7 +19,9 @@ async fn main() {
 
     let proxy = warp::path("v1")
         .and(warp::path::tail())
-        .and(warp::query::raw().or_else(|_| async { Ok::<(_, std::convert::Infallible)>((String::new(),)) }))
+        .and(
+            warp::query::raw().or_else(|_| async { Ok::<(String,), Infallible>((String::new(),)) }),
+        )
         .and(warp::method())
         .and(warp::header::optional::<String>("authorization"))
         .and(warp::header::optional::<String>("if-none-match"))
@@ -41,6 +43,7 @@ async fn handle_proxy(
     client: Client,
 ) -> Result<impl Reply, Rejection> {
     let mut url = format!("https://api.spotify.com/v1/{}", path.as_str());
+
     if !query.is_empty() {
         url.push('?');
         url.push_str(&query);
@@ -48,7 +51,8 @@ async fn handle_proxy(
 
     let ua = USER_AGENTS.choose(&mut thread_rng()).unwrap();
 
-    let mut req = client.request(method.clone(), &url)
+    let mut req = client
+        .request(method.clone(), &url)
         .header("User-Agent", *ua);
 
     if let Some(token) = auth {
@@ -65,15 +69,17 @@ async fn handle_proxy(
 
     let resp = match req.send().await {
         Ok(r) => r,
-        Err(_) => return Ok(warp::reply::with_status("Upstream error", StatusCode::BAD_GATEWAY)),
+        Err(_) => {
+            let mut response = Response::new(Body::from("Upstream error"));
+            *response.status_mut() = StatusCode::BAD_GATEWAY;
+            return Ok(response);
+        }
     };
 
     let mut proxy_resp = Response::builder().status(resp.status());
 
     for (k, v) in resp.headers() {
-        if let Ok(name) = k.clone().try_into() {
-            proxy_resp = proxy_resp.header(name, v.clone());
-        }
+        proxy_resp = proxy_resp.header(k, v);
     }
 
     let stream = resp.bytes_stream();
