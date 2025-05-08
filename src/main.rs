@@ -1,4 +1,16 @@
 
+use rand::{seq::SliceRandom, thread_rng};
+use reqwest::Client;
+use warp::{
+    http::{Method, Response, StatusCode},
+    hyper::Body,
+    Filter, Rejection, Reply,
+};
+use std::convert::Infallible;
+
+
+
+
 static USER_AGENTS: &[&str] = &[
 
 
@@ -19,10 +31,14 @@ static USER_AGENTS: &[&str] = &[
 
 #[tokio::main]
 
+    let proxy = warp::path("v1")
+        .and(warp::path::tail())
+        .and(
+            warp::query::raw().or_else(|_| async { Ok::<(String,), Infallible>((String::new(),)) }),
+        )
 
 
         .and(warp::query::raw().or_else(|_| async { Ok::<(_, std::convert::Infallible)>((String::new(),)) }))
-
 
         .and(warp::method())
 
