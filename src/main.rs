@@ -1,29 +1,3 @@
-// src/main.rs
-
-
-use warp::{
-
-
-    hyper::Body,
-
-
-    http::{HeaderValue, Method, Response, StatusCode},
-
-
-    Filter, Rejection, Reply,
-
-
-};
-
-
-use reqwest::Client;
-
-
-use rand::{seq::SliceRandom, thread_rng};
-
-
-
-
 
 static USER_AGENTS: &[&str] = &[
 
@@ -45,20 +19,6 @@ static USER_AGENTS: &[&str] = &[
 
 #[tokio::main]
 
-
-async fn main() {
-
-
-    let client = Client::builder().build().unwrap();
-
-
-
-
-
-    let proxy = warp::path("v1")
-
-
-        .and(warp::path::tail())
 
 
         .and(warp::query::raw().or_else(|_| async { Ok::<(_, std::convert::Infallible)>((String::new(),)) }))
